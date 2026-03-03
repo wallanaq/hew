@@ -48,3 +48,7 @@ To see all available commands, run:
 ```sh
 make help
 ```
+
+## 🏗️ Contributors
+
+This project exists thanks to all the people who contribute. [Contribution guide](CONTRIBUTING.md).
