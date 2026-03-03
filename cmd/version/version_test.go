@@ -2,8 +2,10 @@ package version
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -11,6 +13,54 @@ import (
 	"github.com/stretchr/testify/assert"
 	internalversion "github.com/wallanaq/hew/internal/version"
 )
+
+// mockTransport intercepts all HTTP requests and returns a configurable response.
+type mockTransport struct {
+	tagName    string
+	statusCode int
+}
+
+func (m *mockTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	body, _ := json.Marshal(map[string]string{"tag_name": m.tagName})
+	return &http.Response{
+		StatusCode: m.statusCode,
+		Body:       io.NopCloser(strings.NewReader(string(body))),
+		Header:     make(http.Header),
+	}, nil
+}
+
+func withMockUpdateCheck(t *testing.T, tagName string) {
+	t.Helper()
+	original := http.DefaultTransport
+	http.DefaultTransport = &mockTransport{tagName: tagName, statusCode: http.StatusOK}
+	t.Cleanup(func() { http.DefaultTransport = original })
+}
+
+func withFailingUpdateCheck(t *testing.T) {
+	t.Helper()
+	original := http.DefaultTransport
+	http.DefaultTransport = &mockTransport{statusCode: http.StatusInternalServerError}
+	t.Cleanup(func() { http.DefaultTransport = original })
+}
+
+func captureStderr(t *testing.T, f func()) string {
+	t.Helper()
+
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	os.Stderr = w
+	f()
+	w.Close()
+	os.Stderr = old
+
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	return buf.String()
+}
 
 func captureStdout(t *testing.T, f func()) string {
 	t.Helper()
@@ -101,7 +151,7 @@ func TestNewVersionCommand_ExecuteDefault(t *testing.T) {
 	output := captureStdout(t, func() {
 		cmd := NewVersionCommand()
 		cmd.SetErr(new(bytes.Buffer))
-		cmd.SetArgs([]string{})
+		cmd.SetArgs([]string{"--no-update-check"})
 		err := cmd.Execute()
 		assert.NoError(t, err)
 	})
@@ -115,7 +165,7 @@ func TestNewVersionCommand_ExecuteShortFlag(t *testing.T) {
 	output := captureStdout(t, func() {
 		cmd := NewVersionCommand()
 		cmd.SetErr(new(bytes.Buffer))
-		cmd.SetArgs([]string{"--short"})
+		cmd.SetArgs([]string{"--short", "--no-update-check"})
 		err := cmd.Execute()
 		assert.NoError(t, err)
 	})
@@ -127,7 +177,7 @@ func TestNewVersionCommand_ExecuteJsonFlag(t *testing.T) {
 	output := captureStdout(t, func() {
 		cmd := NewVersionCommand()
 		cmd.SetErr(new(bytes.Buffer))
-		cmd.SetArgs([]string{"--json"})
+		cmd.SetArgs([]string{"--json", "--no-update-check"})
 		err := cmd.Execute()
 		assert.NoError(t, err)
 	})
@@ -136,4 +186,59 @@ func TestNewVersionCommand_ExecuteJsonFlag(t *testing.T) {
 	err := json.Unmarshal([]byte(output), &info)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, info.Version)
+}
+
+func TestNewVersionCommand_HasNoUpdateCheckFlag(t *testing.T) {
+	cmd := NewVersionCommand()
+	flag := cmd.Flags().Lookup("no-update-check")
+	assert.NotNil(t, flag, "flag --no-update-check should be registered")
+	assert.Equal(t, "false", flag.DefValue)
+}
+
+func TestRun_WithNoUpdateCheck_SkipsUpdateCheck(t *testing.T) {
+	var runErr error
+	output := captureStdout(t, func() {
+		runErr = run(context.Background(), &options{noUpdateCheck: true})
+	})
+	assert.NoError(t, runErr)
+	assert.Contains(t, output, "hew version")
+}
+
+func TestRun_PrintsUpdateNoticeToStderr(t *testing.T) {
+	withMockUpdateCheck(t, "v99.0.0")
+
+	var runErr error
+	stderr := captureStderr(t, func() {
+		captureStdout(t, func() {
+			runErr = run(context.Background(), &options{})
+		})
+	})
+	assert.NoError(t, runErr)
+	assert.Contains(t, stderr, "v99.0.0")
+}
+
+func TestRun_SilentWhenUpToDate(t *testing.T) {
+	withMockUpdateCheck(t, "v0.0.0-unset")
+
+	var runErr error
+	stderr := captureStderr(t, func() {
+		captureStdout(t, func() {
+			runErr = run(context.Background(), &options{})
+		})
+	})
+	assert.NoError(t, runErr)
+	assert.Empty(t, stderr)
+}
+
+func TestRun_SilentOnUpdateCheckError(t *testing.T) {
+	withFailingUpdateCheck(t)
+
+	var runErr error
+	stderr := captureStderr(t, func() {
+		captureStdout(t, func() {
+			runErr = run(context.Background(), &options{})
+		})
+	})
+	assert.NoError(t, runErr)
+	assert.Empty(t, stderr)
 }

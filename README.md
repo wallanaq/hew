@@ -26,15 +26,50 @@ Or download a pre-built binary from the [Releases](https://github.com/wallanaq/h
 
 Hew is organized into intuitive subcommands. Below are the core system commands:
 
-### `hew version` (or `hew --version`)
+```
+Sharp tools for developers. Hew through repetitive tasks.
 
-Displays the currently installed binary version and build information (commit hash and date).
+Usage:
+  hew [flags]
+  hew [command]
 
-- **Usage:** `hew version [flags]`
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  version     Print the version number of Hew
+
+Flags:
+  -h, --help      help for hew
+  -v, --version   version for hew
+
+Use "hew [command] --help" for more information about a command.
+```
 
 ## 👨‍💻 Development
 
 To start developing, you will need Go (version 1.26+).
+
+### Getting started
+
+Clone the repository and install dependencies:
+
+```sh
+git clone https://github.com/wallanaq/hew.git
+cd hew
+go mod tidy
+```
+
+Run the CLI directly without building a binary:
+
+```sh
+# Run the root command
+go run ./cmd/main.go
+
+# Run a specific subcommand
+go run ./cmd/main.go [command]
+```
+
+### Makefile
 
 This project uses a `Makefile` to automate common tasks. Here are the main commands:
 
