@@ -22,6 +22,16 @@ go install github.com/wallanaq/hew@latest
 
 Or download a pre-built binary from the [Releases](https://github.com/wallanaq/hew/releases) page.
 
+## 🛠 Commands
+
+Hew is organized into intuitive subcommands. Below are the core system commands:
+
+### `hew version` (or `hew --version`)
+
+Displays the currently installed binary version and build information (commit hash and date).
+
+- **Usage:** `hew version [flags]`
+
 ## 👨‍💻 Development
 
 To start developing, you will need Go (version 1.26+).
