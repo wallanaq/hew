@@ -26,22 +26,22 @@ builds:
       - -trimpath
     ldflags:
       - -s -w
-      - -X github.com/wallanaq/hew/internal/version.version={{ .Version }}
+      - -X github.com/wallanaq/hew/internal/version.version=v{{ .Version }}
       - -X github.com/wallanaq/hew/internal/version.commit={{ .ShortCommit }}
     main: ./cmd/main.go
 
 archives:
   - formats: ['tar.gz']
-    name_template: '{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}'
+    name_template: '{{ .ProjectName }}-v{{ .Version }}-{{ .Os }}-{{ .Arch }}'
     format_overrides:
       - goos: windows
         formats: ['zip']
 
 checksum:
-  name_template: '{{ .ProjectName }}-{{ .Version }}-checksum.txt'
+  name_template: '{{ .ProjectName }}-v{{ .Version }}-checksum.txt'
 
 snapshot:
-  version_template: '{{ .Tag }}-{{ .ShortCommit }}-snapshot'
+  version_template: '{{ .Version }}-next'
 
 changelog:
   sort: asc
@@ -52,4 +52,4 @@ changelog:
 
 release:
   prerelease: auto
-  name_template: '{{ .Version }}'
+  name_template: 'v{{ .Version }}'
