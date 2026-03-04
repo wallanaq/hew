@@ -37,6 +37,21 @@ archives:
       - goos: windows
         formats: ['zip']
 
+nfpms:
+  - id: hew
+    package_name: hew
+    builds:
+      - hew
+    vendor: wallanaq
+    homepage: https://github.com/wallanaq/hew
+    maintainer: wallanaq <wallanaq@users.noreply.github.com>
+    description: Sharp tools for developers. Hew through repetitive tasks.
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin
+
 checksum:
   name_template: '{{ .ProjectName }}-v{{ .Version }}-checksum.txt'
 

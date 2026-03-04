@@ -1,0 +1,110 @@
+name: Publish Package Repository
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Update apt and rpm repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install tools
+        run: sudo apt-get install -y apt-utils createrepo-c
+
+      - name: Import GPG key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+
+      - name: Checkout or initialize gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git clone --depth=1 --branch gh-pages \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" \
+            pages \
+          || {
+            mkdir pages && cd pages
+            git init
+            git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+            git checkout --orphan gh-pages
+          }
+
+          cd pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          mkdir -p apt/pool/main rpm/packages
+
+      - name: Download release packages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=${{ github.event.release.tag_name }}
+          gh release download "$TAG" --repo ${{ github.repository }} --pattern "*.deb" --dir pages/apt/pool/main || true
+          gh release download "$TAG" --repo ${{ github.repository }} --pattern "*.rpm" --dir pages/rpm/packages || true
+
+      - name: Build apt repository
+        run: |
+          cd pages
+
+          apt-ftparchive packages apt/pool/main > /tmp/all_packages.txt
+
+          for arch in amd64 arm64; do
+            mkdir -p apt/dists/stable/main/binary-${arch}
+            awk -v arch="$arch" '
+              /^$/        { if (is_arch) printf "%s\n", block; block=""; is_arch=0; next }
+              /^Architecture: / { if ($2 == arch) is_arch=1 }
+              { block = block $0 "\n" }
+              END         { if (is_arch) printf "%s\n", block }
+            ' /tmp/all_packages.txt > apt/dists/stable/main/binary-${arch}/Packages
+            gzip -kf apt/dists/stable/main/binary-${arch}/Packages
+          done
+
+          cat > /tmp/release.conf << 'EOF'
+          APT::FTPArchive::Release {
+            Origin      "hew";
+            Label       "hew";
+            Suite       "stable";
+            Codename    "stable";
+            Architectures "amd64 arm64";
+            Components  "main";
+            Description "Hew CLI package repository";
+          };
+          EOF
+
+          apt-ftparchive -c /tmp/release.conf release apt/dists/stable > apt/dists/stable/Release
+
+          gpg --batch --yes --clearsign \
+            -o apt/dists/stable/InRelease apt/dists/stable/Release
+
+          gpg --batch --yes --detach-sign --armor \
+            -o apt/dists/stable/Release.gpg apt/dists/stable/Release
+
+          gpg --export --armor > gpg.key
+
+      - name: Build rpm repository
+        run: |
+          cd pages/rpm/packages
+          createrepo_c .
+          gpg --batch --yes --detach-sign --armor repodata/repomd.xml
+
+          cat > ../hew.repo << EOF
+          [hew]
+          name=Hew CLI
+          baseurl=https://${{ github.repository_owner }}.github.io/hew/rpm/packages
+          enabled=1
+          gpgcheck=1
+          gpgkey=https://${{ github.repository_owner }}.github.io/hew/gpg.key
+          EOF
+
+      - name: Commit and push to gh-pages
+        run: |
+          cd pages
+          git add -A
+          git diff --cached --quiet \
+            || git commit -m "chore: publish packages for ${{ github.event.release.tag_name }}"
+          git push origin gh-pages
