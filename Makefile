@@ -12,7 +12,7 @@ GO_TEST_FLAGS    := -v -race -coverprofile=coverage.out
 # Commands (Targets)
 # ====================================================================================
 
-.PHONY: all build clean lint release test help
+.PHONY: all build clean coverage lint release test help
 
 all: test lint build ## Run tests, lint, and build (snapshot)
 
@@ -33,6 +33,11 @@ lint: ## Run the linter (golangci-lint)
 test: ## Run tests
 	@echo "🧪 Running tests..."
 	@go test $(GO_TEST_FLAGS) $(GO_PACKAGES)
+
+coverage: ## Run tests and display coverage report
+	@echo "📊 Running coverage..."
+	@go test -race -coverprofile=coverage.out $(GO_PACKAGES)
+	@go tool cover -func=coverage.out
 
 # ------------------------------------------------------------------------------------
 # Build and Release
