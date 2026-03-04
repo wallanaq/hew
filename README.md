@@ -7,7 +7,7 @@
 [![Release](https://img.shields.io/github/actions/workflow/status/wallanaq/hew/release.yml?label=Release&style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/wallanaq/hew/actions/workflows/release.yml)
 [![Latest Release](https://img.shields.io/github/v/release/wallanaq/hew?style=for-the-badge&logo=github)](https://github.com/wallanaq/hew/releases/latest)
 [![Coverage](https://img.shields.io/codecov/c/github/wallanaq/hew?style=for-the-badge&logo=codecov)](https://codecov.io/gh/wallanaq/hew)
-[![Go Report Card](https://goreportcard.com/badge/github.com/wallanaq/hew?style=flat-square)](https://goreportcard.com/report/github.com/wallanaq/hew)
+[![Go Report Card](https://goreportcard.com/badge/github.com/wallanaq/hew?style=for-the-badge)](https://goreportcard.com/report/github.com/wallanaq/hew)
 
 **Hew** is the Swiss Army knife for developers. A high-performance CLI built in Go to automate repetitive daily tasks—from UUID generation to JWT manipulation and SSH key management.
 
